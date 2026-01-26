@@ -401,7 +401,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.5.0</div>
+    <div class="version">v0.5.1</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -757,16 +757,18 @@
                 // 等待拍牌 (最多2秒)
                 state.flipTimeout = setTimeout(() => {
                     // 時間到還沒人拍，視為平手，繼續
-                    if (state.canSlap) {
+                    if (state.canSlap && !state.isPaused) {
                         showMessage('都沒拍！繼續...');
                         state.canSlap = false;
-                        setTimeout(flipCard, 1000);
+                        state.flipTimeout = setTimeout(() => {
+                            if (state.isPlaying && !state.isPaused) flipCard();
+                        }, 1000);
                     }
                 }, 2000);
             } else {
                 // 不需要拍，準備下一張
                 state.flipTimeout = setTimeout(() => {
-                    if (state.isPlaying) {
+                    if (state.isPlaying && !state.isPaused) {
                         flipCard();
                     }
                 }, 1200);
@@ -822,7 +824,9 @@
             // 情況分析
             if (p1 === null && p2 === null) {
                 // 都沒拍
-                setTimeout(flipCard, 1000);
+                state.flipTimeout = setTimeout(() => {
+                    if (state.isPlaying && !state.isPaused) flipCard();
+                }, 1000);
                 return;
             }
 
@@ -906,12 +910,17 @@
 
             // 檢查牌堆是否還有牌
             if (state.deck.length === 0) {
-                setTimeout(endGame, 1500);
+                state.flipTimeout = setTimeout(() => {
+                    if (!state.isPaused) endGame();
+                }, 1500);
             } else {
-                setTimeout(() => {
+                state.flipTimeout = setTimeout(() => {
+                    if (state.isPaused) return;
                     clearAllFeedback();
                     displayCardBack();
-                    setTimeout(flipCard, 1000);
+                    state.flipTimeout = setTimeout(() => {
+                        if (state.isPlaying && !state.isPaused) flipCard();
+                    }, 1000);
                 }, 1500);
             }
         }
