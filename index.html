@@ -329,7 +329,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.3.0</div>
+    <div class="version">v0.3.1</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -881,22 +881,9 @@
                 handleSlap(2);
             }, { passive: false });
 
-            // 整個區域也可以觸控
-            elements.player1Zone.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                handleSlap(1);
-            }, { passive: false });
-
-            elements.player2Zone.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                handleSlap(2);
-            }, { passive: false });
-
             // 滑鼠事件 (用於測試)
             elements.player1Button.addEventListener('mousedown', () => handleSlap(1));
             elements.player2Button.addEventListener('mousedown', () => handleSlap(2));
-            elements.player1Zone.addEventListener('mousedown', () => handleSlap(1));
-            elements.player2Zone.addEventListener('mousedown', () => handleSlap(2));
         }
 
         // 按鈕事件 (同時支援 click 和 touch)
