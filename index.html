@@ -324,7 +324,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.4.0</div>
+    <div class="version">v0.4.1</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -570,17 +570,13 @@
             elements.player2Zone.classList.remove('winner', 'loser', 'second-wrong');
         }
 
-        // 更新棄牌堆視覺效果
+        // 新增牌到棄牌堆視覺（只加入新的牌）
         function updateDiscardVisual(discardElement, cards) {
-            // 清空現有的牌
-            discardElement.innerHTML = '';
+            const currentCount = discardElement.children.length;
+            const maxVisible = 12; // 最多顯示幾張
 
-            if (cards.length === 0) return;
-
-            // 最多顯示 8 張牌的視覺
-            const maxVisible = Math.min(cards.length, 8);
-
-            for (let i = 0; i < maxVisible; i++) {
+            // 只加入新的牌
+            for (let i = currentCount; i < cards.length && i < maxVisible; i++) {
                 const card = document.createElement('div');
                 card.className = 'discard-card';
                 // 隨機位置和角度製造亂亂的感覺
@@ -601,10 +597,6 @@
             elements.player1Cards.textContent = state.player1Discard.length;
             elements.player2Cards.textContent = state.player2Discard.length;
             elements.deckCount.textContent = state.deck.length;
-
-            // 更新棄牌堆視覺
-            updateDiscardVisual(elements.player1Discard, state.player1Discard);
-            updateDiscardVisual(elements.player2Discard, state.player2Discard);
         }
 
         // 開始遊戲
@@ -808,9 +800,11 @@
             if (loser === 1) {
                 state.player1Discard.push(...state.centerPile);
                 showMessage(`玩家1收 ${pileCount} 張牌`);
+                updateDiscardVisual(elements.player1Discard, state.player1Discard);
             } else if (loser === 2) {
                 state.player2Discard.push(...state.centerPile);
                 showMessage(`玩家2收 ${pileCount} 張牌`);
+                updateDiscardVisual(elements.player2Discard, state.player2Discard);
             }
 
             state.centerPile = [];
