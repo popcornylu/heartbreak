@@ -131,32 +131,27 @@
             margin-top: 0.5rem;
         }
 
-        /* 牌堆視覺效果 */
-        .deck-stack {
+        /* 棄牌堆視覺效果 */
+        .discard-pile {
             position: relative;
-            width: 80px;
-            height: 112px;
-            margin: 0 auto;
+            width: 100px;
+            height: 80px;
+            margin: 0.5rem auto;
         }
 
-        .deck-card {
+        .discard-card {
             position: absolute;
-            width: 80px;
-            height: 112px;
+            width: 50px;
+            height: 70px;
             background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            border-radius: 8px;
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .deck-card::before {
-            content: "🂠";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 3rem;
-            opacity: 0.8;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: white;
         }
 
         /* 中間牌區 */
@@ -329,7 +324,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.3.1</div>
+    <div class="version">v0.4.0</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -338,8 +333,8 @@
         <p>1. 系統自動喊數 1→2→3→...→13→1</p>
         <p>2. 當翻出的牌 = 喊的數字時，快拍！</p>
         <p>3. 🃏 Joker 出現時，不管喊什麼都要拍！</p>
-        <p>4. 拍慢的人要收走所有牌</p>
-        <p>5. 先把牌出完的人獲勝</p>
+        <p>4. 拍慢或拍錯的人收走牌堆</p>
+        <p>5. 54張牌發完時，棄牌最少者獲勝！</p>
         <br>
         <p>📱 兩位玩家各站 iPad 一側</p>
         <button class="start-btn" id="startBtn">開始遊戲</button>
@@ -353,8 +348,8 @@
             <div class="player-info">
                 <div class="player-name">玩家 1</div>
                 <div class="slap-button" id="player1Button"></div>
-                <div class="deck-stack" id="player1Deck"></div>
-                <div class="card-count"><span id="player1Cards">27</span> 張</div>
+                <div class="discard-pile" id="player1Discard"></div>
+                <div class="card-count">棄牌: <span id="player1Cards">0</span> 張</div>
             </div>
         </div>
 
@@ -372,8 +367,8 @@
             <div class="player-info">
                 <div class="player-name">玩家 2</div>
                 <div class="slap-button" id="player2Button"></div>
-                <div class="deck-stack" id="player2Deck"></div>
-                <div class="card-count"><span id="player2Cards">27</span> 張</div>
+                <div class="discard-pile" id="player2Discard"></div>
+                <div class="card-count">棄牌: <span id="player2Cards">0</span> 張</div>
             </div>
         </div>
     </div>
@@ -387,10 +382,11 @@
     <script>
         // 遊戲狀態
         const state = {
-            player1Cards: 27,
-            player2Cards: 27,
-            centerPile: [],
-            currentNumber: 0, // 當前喊的數字 (1-13)
+            deck: [],              // 系統牌堆
+            player1Discard: [],    // 玩家1棄牌堆
+            player2Discard: [],    // 玩家2棄牌堆
+            centerPile: [],        // 中央牌堆
+            currentNumber: 0,      // 當前喊的數字 (1-13)
             currentCard: null,
             isPlaying: false,
             canSlap: false,
@@ -406,8 +402,8 @@
             player2Zone: document.getElementById('player2Zone'),
             player1Cards: document.getElementById('player1Cards'),
             player2Cards: document.getElementById('player2Cards'),
-            player1Deck: document.getElementById('player1Deck'),
-            player2Deck: document.getElementById('player2Deck'),
+            player1Discard: document.getElementById('player1Discard'),
+            player2Discard: document.getElementById('player2Discard'),
             player1Button: document.getElementById('player1Button'),
             player2Button: document.getElementById('player2Button'),
             player1Feedback: document.getElementById('player1Feedback'),
@@ -485,14 +481,17 @@
         const suits = ['♠', '♥', '♦', '♣'];
         const suitColors = { '♠': 'black', '♥': 'red', '♦': 'red', '♣': 'black' };
 
-        // 建立一副牌
+        // 建立一副牌 (52張 + 2張Joker = 54張)
         function createDeck() {
             const deck = [];
             for (let suit of suits) {
                 for (let num = 1; num <= 13; num++) {
-                    deck.push({ suit, num });
+                    deck.push({ suit, num, isJoker: false });
                 }
             }
+            // 加入2張Joker
+            deck.push({ isJoker: true });
+            deck.push({ isJoker: true });
             return shuffle(deck);
         }
 
@@ -571,51 +570,59 @@
             elements.player2Zone.classList.remove('winner', 'loser', 'second-wrong');
         }
 
-        // 更新牌堆視覺效果
-        function updateDeckVisual(deckElement, cardCount) {
+        // 更新棄牌堆視覺效果
+        function updateDiscardVisual(discardElement, cards) {
             // 清空現有的牌
-            deckElement.innerHTML = '';
+            discardElement.innerHTML = '';
 
-            if (cardCount <= 0) return;
+            if (cards.length === 0) return;
 
-            // 根據牌數決定顯示幾張牌（最多顯示 10 層）
-            const maxLayers = 10;
-            const layers = Math.min(Math.ceil(cardCount / 5), maxLayers);
+            // 最多顯示 8 張牌的視覺
+            const maxVisible = Math.min(cards.length, 8);
 
-            // 創建牌堆層疊效果
-            for (let i = 0; i < layers; i++) {
+            for (let i = 0; i < maxVisible; i++) {
                 const card = document.createElement('div');
-                card.className = 'deck-card';
-                // 每張牌偏移 2px 製造厚度感
-                card.style.top = `${-i * 2}px`;
-                card.style.left = `${i * 1}px`;
+                card.className = 'discard-card';
+                // 隨機位置和角度製造亂亂的感覺
+                const rotation = (Math.random() - 0.5) * 40; // -20 到 20 度
+                const offsetX = (Math.random() - 0.5) * 50;  // -25 到 25 px
+                const offsetY = (Math.random() - 0.5) * 20;  // -10 到 10 px
+                card.style.left = `${25 + offsetX}px`;
+                card.style.top = `${5 + offsetY}px`;
+                card.style.transform = `rotate(${rotation}deg)`;
                 card.style.zIndex = i;
-                deckElement.appendChild(card);
+                card.textContent = '🂠';
+                discardElement.appendChild(card);
             }
         }
 
         // 更新畫面
         function updateUI() {
-            elements.player1Cards.textContent = state.player1Cards;
-            elements.player2Cards.textContent = state.player2Cards;
-            elements.deckCount.textContent = state.centerPile.length;
+            elements.player1Cards.textContent = state.player1Discard.length;
+            elements.player2Cards.textContent = state.player2Discard.length;
+            elements.deckCount.textContent = state.deck.length;
 
-            // 更新牌堆視覺
-            updateDeckVisual(elements.player1Deck, state.player1Cards);
-            updateDeckVisual(elements.player2Deck, state.player2Cards);
+            // 更新棄牌堆視覺
+            updateDiscardVisual(elements.player1Discard, state.player1Discard);
+            updateDiscardVisual(elements.player2Discard, state.player2Discard);
         }
 
         // 開始遊戲
         function startGame() {
             elements.startScreen.classList.add('hidden');
 
-            // 初始化狀態 (54張牌含2張Joker，每人27張)
-            state.player1Cards = 27;
-            state.player2Cards = 27;
+            // 建立並洗牌
+            state.deck = createDeck();
+            state.player1Discard = [];
+            state.player2Discard = [];
             state.centerPile = [];
             state.currentNumber = 0;
             state.isPlaying = true;
             state.canSlap = false;
+
+            // 清空棄牌堆視覺
+            elements.player1Discard.innerHTML = '';
+            elements.player2Discard.innerHTML = '';
 
             updateUI();
             displayCardBack();
@@ -629,8 +636,8 @@
         function flipCard() {
             if (!state.isPlaying) return;
 
-            // 檢查是否還有牌可翻
-            if (state.player1Cards <= 0 || state.player2Cards <= 0) {
+            // 檢查牌堆是否還有牌
+            if (state.deck.length === 0) {
                 endGame();
                 return;
             }
@@ -644,27 +651,8 @@
             state.currentNumber = (state.currentNumber % 13) + 1;
             elements.callNumber.textContent = getCardDisplay(state.currentNumber);
 
-            // 決定誰出牌 (輪流)
-            const isPlayer1Turn = state.centerPile.length % 2 === 0;
-            if (isPlayer1Turn && state.player1Cards > 0) {
-                state.player1Cards--;
-            } else if (state.player2Cards > 0) {
-                state.player2Cards--;
-            } else if (state.player1Cards > 0) {
-                state.player1Cards--;
-            }
-
-            // 生成隨機牌 (2/54 機率出現 Joker)
-            let card;
-            if (Math.random() < 2 / 54) {
-                card = { isJoker: true };
-            } else {
-                card = {
-                    suit: suits[Math.floor(Math.random() * 4)],
-                    num: Math.floor(Math.random() * 13) + 1,
-                    isJoker: false
-                };
-            }
+            // 從牌堆抽一張牌
+            const card = state.deck.pop();
             state.currentCard = card;
             state.centerPile.push(card);
 
@@ -816,20 +804,20 @@
                 }
             }
 
-            // 輸家收牌
+            // 輸家收牌到棄牌堆
             if (loser === 1) {
-                state.player1Cards += pileCount;
+                state.player1Discard.push(...state.centerPile);
                 showMessage(`玩家1收 ${pileCount} 張牌`);
             } else if (loser === 2) {
-                state.player2Cards += pileCount;
+                state.player2Discard.push(...state.centerPile);
                 showMessage(`玩家2收 ${pileCount} 張牌`);
             }
 
             state.centerPile = [];
             updateUI();
 
-            // 檢查遊戲結束
-            if (state.player1Cards >= 52 || state.player2Cards >= 52) {
+            // 檢查牌堆是否還有牌
+            if (state.deck.length === 0) {
                 setTimeout(endGame, 1500);
             } else {
                 setTimeout(() => {
@@ -845,18 +833,23 @@
             state.isPlaying = false;
             clearTimeout(state.flipTimeout);
 
+            const p1Count = state.player1Discard.length;
+            const p2Count = state.player2Discard.length;
+
             let winner;
-            if (state.player1Cards <= 0) {
+            let resultText;
+
+            if (p1Count < p2Count) {
                 winner = '玩家 1';
-            } else if (state.player2Cards <= 0) {
+                resultText = `🎉 ${winner} 獲勝！\n(${p1Count} vs ${p2Count} 張棄牌)`;
+            } else if (p2Count < p1Count) {
                 winner = '玩家 2';
-            } else if (state.player1Cards < state.player2Cards) {
-                winner = '玩家 1';
+                resultText = `🎉 ${winner} 獲勝！\n(${p2Count} vs ${p1Count} 張棄牌)`;
             } else {
-                winner = '玩家 2';
+                resultText = `🤝 平手！\n(雙方都是 ${p1Count} 張棄牌)`;
             }
 
-            elements.resultText.textContent = `🎉 ${winner} 獲勝！`;
+            elements.resultText.innerHTML = resultText.replace('\n', '<br>');
             elements.resultScreen.classList.add('show');
         }
 
