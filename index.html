@@ -277,7 +277,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.1.0</div>
+    <div class="version">v0.2.0</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -307,9 +307,7 @@
         <!-- 中間牌區 -->
         <div class="center-area">
             <div class="call-number" id="callNumber">-</div>
-            <div class="card-area" id="cardArea">
-                <div class="card back" id="currentCard"></div>
-            </div>
+            <div class="card-area" id="cardArea"></div>
             <div class="deck-count">牌堆: <span id="deckCount">0</span></div>
             <div class="message" id="message"></div>
         </div>
@@ -356,7 +354,6 @@
             player2Deck: document.getElementById('player2Deck'),
             callNumber: document.getElementById('callNumber'),
             cardArea: document.getElementById('cardArea'),
-            currentCard: document.getElementById('currentCard'),
             deckCount: document.getElementById('deckCount'),
             message: document.getElementById('message'),
             resultScreen: document.getElementById('resultScreen'),
@@ -455,23 +452,40 @@
             return displays[num];
         }
 
-        // 顯示卡牌
+        // 顯示卡牌 - 疊加到牌堆上
         function displayCard(card) {
+            const cardEl = document.createElement('div');
+
             if (card.isJoker) {
-                elements.currentCard.className = 'card front joker';
-                elements.currentCard.innerHTML = '🃏<br>JOKER';
+                cardEl.className = 'card front joker';
+                cardEl.innerHTML = '🃏<br>JOKER';
             } else {
                 const display = getCardDisplay(card.num);
                 const color = suitColors[card.suit];
-                elements.currentCard.className = `card front ${color}`;
-                elements.currentCard.innerHTML = `${card.suit}<br>${display}`;
+                cardEl.className = `card front ${color}`;
+                cardEl.innerHTML = `${card.suit}<br>${display}`;
             }
+
+            // 隨機偏移和旋轉
+            const rotation = (Math.random() - 0.5) * 30; // -15 到 15 度
+            const offsetX = (Math.random() - 0.5) * 20;  // -10 到 10 px
+            const offsetY = (Math.random() - 0.5) * 20;  // -10 到 10 px
+            const pileIndex = elements.cardArea.children.length;
+
+            cardEl.style.transform = `translate(${offsetX}px, ${offsetY}px) rotate(${rotation}deg)`;
+            cardEl.style.zIndex = pileIndex;
+
+            elements.cardArea.appendChild(cardEl);
         }
 
-        // 顯示牌背
+        // 清空牌堆視覺
+        function clearPileVisual() {
+            elements.cardArea.innerHTML = '';
+        }
+
+        // 顯示牌背（初始狀態）
         function displayCardBack() {
-            elements.currentCard.className = 'card back';
-            elements.currentCard.innerHTML = '';
+            clearPileVisual();
         }
 
         // 顯示訊息
