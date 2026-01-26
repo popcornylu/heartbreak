@@ -704,9 +704,18 @@
             elements.player2Zone.addEventListener('mousedown', () => handleSlap(2));
         }
 
-        // 按鈕事件
+        // 按鈕事件 (同時支援 click 和 touch)
         elements.startBtn.addEventListener('click', startGame);
+        elements.startBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            startGame();
+        });
         elements.restartBtn.addEventListener('click', () => {
+            elements.resultScreen.classList.remove('show');
+            startGame();
+        });
+        elements.restartBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
             elements.resultScreen.classList.remove('show');
             startGame();
         });
