@@ -252,6 +252,16 @@
             display: none !important;
         }
 
+        /* 版本號 */
+        .version {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.4);
+            z-index: 1000;
+        }
+
         /* 訊息提示 */
         .message {
             position: absolute;
@@ -267,6 +277,8 @@
     </style>
 </head>
 <body>
+    <div class="version">v0.1.0</div>
+
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
         <h1>❤️ 心臟病</h1>
