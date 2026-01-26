@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>心臟病 - 雙人對戰</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #1a5f2a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: row;
+        }
+
+        /* 拍牌區域 */
+        .slap-zone {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.3);
+            transition: background-color 0.1s;
+        }
+
+        .slap-zone.player1 {
+            background: linear-gradient(90deg, #2d7a3e 0%, #1a5f2a 100%);
+            transform: rotate(180deg);
+        }
+
+        .slap-zone.player2 {
+            background: linear-gradient(270deg, #2d7a3e 0%, #1a5f2a 100%);
+        }
+
+        .slap-zone.active {
+            background: #4a9f5a !important;
+        }
+
+        .slap-zone.winner {
+            background: #27ae60 !important;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .slap-zone.loser {
+            background: #c0392b !important;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .player-info {
+            text-align: center;
+        }
+
+        .player-name {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-count {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 0.5rem;
+        }
+
+        /* 牌堆視覺效果 */
+        .deck-stack {
+            position: relative;
+            width: 80px;
+            height: 112px;
+            margin: 0 auto;
+        }
+
+        .deck-card {
+            position: absolute;
+            width: 80px;
+            height: 112px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .deck-card::before {
+            content: "🂠";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            opacity: 0.8;
+        }
+
+        /* 中間牌區 */
+        .center-area {
+            width: 300px;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #145224;
+            position: relative;
+        }
+
+        .call-number {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #f1c40f;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .card-area {
+            width: 200px;
+            height: 280px;
+            position: relative;
+            perspective: 1000px;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.3s;
+        }
+
+        .card.back {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .card.back::before {
+            content: "🂠";
+            font-size: 6rem;
+        }
+
+        .card.front {
+            background: white;
+        }
+
+        .card.red {
+            color: #e74c3c;
+        }
+
+        .card.black {
+            color: #2c3e50;
+        }
+
+        .card.joker {
+            color: #9b59b6;
+            background: linear-gradient(135deg, #fff 0%, #f0e6ff 100%);
+        }
+
+        .deck-count {
+            margin-top: 2rem;
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* 開始畫面 */
+        .start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: white;
+        }
+
+        .start-screen h1 {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+        }
+
+        .start-screen p {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #bdc3c7;
+        }
+
+        .start-btn {
+            margin-top: 2rem;
+            padding: 1.5rem 4rem;
+            font-size: 2rem;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .start-btn:active {
+            background: #c0392b;
+        }
+
+        /* 結果畫面 */
+        .result-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: white;
+        }
+
+        .result-screen.show {
+            display: flex;
+        }
+
+        .result-screen h2 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 訊息提示 */
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: #f1c40f;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- 開始畫面 -->
+    <div class="start-screen" id="startScreen">
+        <h1>❤️ 心臟病</h1>
+        <p>遊戲規則：</p>
+        <p>1. 系統自動喊數 1→2→3→...→13→1</p>
+        <p>2. 當翻出的牌 = 喊的數字時，快拍！</p>
+        <p>3. 🃏 Joker 出現時，不管喊什麼都要拍！</p>
+        <p>4. 拍慢的人要收走所有牌</p>
+        <p>5. 先把牌出完的人獲勝</p>
+        <br>
+        <p>📱 兩位玩家各站 iPad 一側</p>
+        <button class="start-btn" id="startBtn">開始遊戲</button>
+    </div>
+
+    <!-- 遊戲畫面 -->
+    <div class="game-container" id="gameContainer">
+        <!-- 玩家1 拍牌區 (左側/上方旋轉180度) -->
+        <div class="slap-zone player1" id="player1Zone">
+            <div class="player-info">
+                <div class="player-name">玩家 1</div>
+                <div class="deck-stack" id="player1Deck"></div>
+                <div class="card-count"><span id="player1Cards">27</span> 張</div>
+            </div>
+        </div>
+
+        <!-- 中間牌區 -->
+        <div class="center-area">
+            <div class="call-number" id="callNumber">-</div>
+            <div class="card-area" id="cardArea">
+                <div class="card back" id="currentCard"></div>
+            </div>
+            <div class="deck-count">牌堆: <span id="deckCount">0</span></div>
+            <div class="message" id="message"></div>
+        </div>
+
+        <!-- 玩家2 拍牌區 (右側) -->
+        <div class="slap-zone player2" id="player2Zone">
+            <div class="player-info">
+                <div class="player-name">玩家 2</div>
+                <div class="deck-stack" id="player2Deck"></div>
+                <div class="card-count"><span id="player2Cards">27</span> 張</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果畫面 -->
+    <div class="result-screen" id="resultScreen">
+        <h2 id="resultText"></h2>
+        <button class="start-btn" id="restartBtn">再玩一次</button>
+    </div>
+
+    <script>
+        // 遊戲狀態
+        const state = {
+            player1Cards: 27,
+            player2Cards: 27,
+            centerPile: [],
+            currentNumber: 0, // 當前喊的數字 (1-13)
+            currentCard: null,
+            isPlaying: false,
+            canSlap: false,
+            flipTimeout: null,
+            slapRecorded: { player1: null, player2: null }
+        };
+
+        // DOM 元素
+        const elements = {
+            startScreen: document.getElementById('startScreen'),
+            startBtn: document.getElementById('startBtn'),
+            player1Zone: document.getElementById('player1Zone'),
+            player2Zone: document.getElementById('player2Zone'),
+            player1Cards: document.getElementById('player1Cards'),
+            player2Cards: document.getElementById('player2Cards'),
+            player1Deck: document.getElementById('player1Deck'),
+            player2Deck: document.getElementById('player2Deck'),
+            callNumber: document.getElementById('callNumber'),
+            cardArea: document.getElementById('cardArea'),
+            currentCard: document.getElementById('currentCard'),
+            deckCount: document.getElementById('deckCount'),
+            message: document.getElementById('message'),
+            resultScreen: document.getElementById('resultScreen'),
+            resultText: document.getElementById('resultText'),
+            restartBtn: document.getElementById('restartBtn')
+        };
+
+        // 撲克牌花色
+        const suits = ['♠', '♥', '♦', '♣'];
+        const suitColors = { '♠': 'black', '♥': 'red', '♦': 'red', '♣': 'black' };
+
+        // 建立一副牌
+        function createDeck() {
+            const deck = [];
+            for (let suit of suits) {
+                for (let num = 1; num <= 13; num++) {
+                    deck.push({ suit, num });
+                }
+            }
+            return shuffle(deck);
+        }
+
+        // 洗牌
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // 數字顯示
+        function getCardDisplay(num) {
+            const displays = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            return displays[num];
+        }
+
+        // 顯示卡牌
+        function displayCard(card) {
+            if (card.isJoker) {
+                elements.currentCard.className = 'card front joker';
+                elements.currentCard.innerHTML = '🃏<br>JOKER';
+            } else {
+                const display = getCardDisplay(card.num);
+                const color = suitColors[card.suit];
+                elements.currentCard.className = `card front ${color}`;
+                elements.currentCard.innerHTML = `${card.suit}<br>${display}`;
+            }
+        }
+
+        // 顯示牌背
+        function displayCardBack() {
+            elements.currentCard.className = 'card back';
+            elements.currentCard.innerHTML = '';
+        }
+
+        // 顯示訊息
+        function showMessage(text, duration = 1500) {
+            elements.message.textContent = text;
+            setTimeout(() => {
+                elements.message.textContent = '';
+            }, duration);
+        }
+
+        // 更新牌堆視覺效果
+        function updateDeckVisual(deckElement, cardCount) {
+            // 清空現有的牌
+            deckElement.innerHTML = '';
+
+            if (cardCount <= 0) return;
+
+            // 根據牌數決定顯示幾張牌（最多顯示 10 層）
+            const maxLayers = 10;
+            const layers = Math.min(Math.ceil(cardCount / 5), maxLayers);
+
+            // 創建牌堆層疊效果
+            for (let i = 0; i < layers; i++) {
+                const card = document.createElement('div');
+                card.className = 'deck-card';
+                // 每張牌偏移 2px 製造厚度感
+                card.style.top = `${-i * 2}px`;
+                card.style.left = `${i * 1}px`;
+                card.style.zIndex = i;
+                deckElement.appendChild(card);
+            }
+        }
+
+        // 更新畫面
+        function updateUI() {
+            elements.player1Cards.textContent = state.player1Cards;
+            elements.player2Cards.textContent = state.player2Cards;
+            elements.deckCount.textContent = state.centerPile.length;
+
+            // 更新牌堆視覺
+            updateDeckVisual(elements.player1Deck, state.player1Cards);
+            updateDeckVisual(elements.player2Deck, state.player2Cards);
+        }
+
+        // 開始遊戲
+        function startGame() {
+            elements.startScreen.classList.add('hidden');
+
+            // 初始化狀態 (54張牌含2張Joker，每人27張)
+            state.player1Cards = 27;
+            state.player2Cards = 27;
+            state.centerPile = [];
+            state.currentNumber = 0;
+            state.isPlaying = true;
+            state.canSlap = false;
+
+            updateUI();
+            displayCardBack();
+            elements.callNumber.textContent = '-';
+
+            // 延遲開始翻牌
+            setTimeout(flipCard, 1500);
+        }
+
+        // 翻牌
+        function flipCard() {
+            if (!state.isPlaying) return;
+
+            // 檢查是否還有牌可翻
+            if (state.player1Cards <= 0 || state.player2Cards <= 0) {
+                endGame();
+                return;
+            }
+
+            // 重置拍牌紀錄
+            state.slapRecorded = { player1: null, player2: null };
+            state.canSlap = false;
+
+            // 更新喊的數字
+            state.currentNumber = (state.currentNumber % 13) + 1;
+            elements.callNumber.textContent = getCardDisplay(state.currentNumber);
+
+            // 決定誰出牌 (輪流)
+            const isPlayer1Turn = state.centerPile.length % 2 === 0;
+            if (isPlayer1Turn && state.player1Cards > 0) {
+                state.player1Cards--;
+            } else if (state.player2Cards > 0) {
+                state.player2Cards--;
+            } else if (state.player1Cards > 0) {
+                state.player1Cards--;
+            }
+
+            // 生成隨機牌 (2/54 機率出現 Joker)
+            let card;
+            if (Math.random() < 2 / 54) {
+                card = { isJoker: true };
+            } else {
+                card = {
+                    suit: suits[Math.floor(Math.random() * 4)],
+                    num: Math.floor(Math.random() * 13) + 1,
+                    isJoker: false
+                };
+            }
+            state.currentCard = card;
+            state.centerPile.push(card);
+
+            // 顯示翻牌動畫
+            displayCard(card);
+            updateUI();
+
+            // 允許拍牌
+            state.canSlap = true;
+
+            // 檢查是否需要拍 (牌 = 喊的數字 或 Joker)
+            const shouldSlap = card.isJoker || card.num === state.currentNumber;
+
+            if (shouldSlap) {
+                // 等待拍牌 (最多2秒)
+                state.flipTimeout = setTimeout(() => {
+                    // 時間到還沒人拍，視為平手，繼續
+                    if (state.canSlap) {
+                        showMessage('都沒拍！繼續...');
+                        state.canSlap = false;
+                        setTimeout(flipCard, 1000);
+                    }
+                }, 2000);
+            } else {
+                // 不需要拍，準備下一張
+                state.flipTimeout = setTimeout(() => {
+                    if (state.isPlaying) {
+                        flipCard();
+                    }
+                }, 1200);
+            }
+        }
+
+        // 處理拍牌
+        function handleSlap(player) {
+            if (!state.isPlaying || !state.canSlap) return;
+
+            const now = performance.now();
+
+            // 記錄拍牌時間
+            if (player === 1 && state.slapRecorded.player1 === null) {
+                state.slapRecorded.player1 = now;
+                elements.player1Zone.classList.add('active');
+                setTimeout(() => elements.player1Zone.classList.remove('active'), 200);
+            } else if (player === 2 && state.slapRecorded.player2 === null) {
+                state.slapRecorded.player2 = now;
+                elements.player2Zone.classList.add('active');
+                setTimeout(() => elements.player2Zone.classList.remove('active'), 200);
+            }
+
+            // 檢查是否兩人都拍了，或是否需要拍 (Joker 也要拍)
+            const shouldSlap = state.currentCard && (state.currentCard.isJoker || state.currentCard.num === state.currentNumber);
+
+            if (shouldSlap) {
+                // 需要拍的情況
+                if (state.slapRecorded.player1 !== null && state.slapRecorded.player2 !== null) {
+                    // 兩人都拍了，比較誰快
+                    clearTimeout(state.flipTimeout);
+                    state.canSlap = false;
+                    judgeSlap();
+                } else {
+                    // 只有一人拍，等另一人（設定短暫等待）
+                    clearTimeout(state.flipTimeout);
+                    state.flipTimeout = setTimeout(() => {
+                        if (state.canSlap) {
+                            state.canSlap = false;
+                            judgeSlap();
+                        }
+                    }, 500);
+                }
+            } else {
+                // 不需要拍卻拍了 = 拍錯
+                clearTimeout(state.flipTimeout);
+                state.canSlap = false;
+
+                const loser = player;
+                const pileCount = state.centerPile.length;
+
+                if (loser === 1) {
+                    state.player1Cards += pileCount;
+                    showMessage(`玩家1拍錯！收 ${pileCount} 張牌`);
+                    elements.player1Zone.classList.add('loser');
+                    setTimeout(() => elements.player1Zone.classList.remove('loser'), 1000);
+                } else {
+                    state.player2Cards += pileCount;
+                    showMessage(`玩家2拍錯！收 ${pileCount} 張牌`);
+                    elements.player2Zone.classList.add('loser');
+                    setTimeout(() => elements.player2Zone.classList.remove('loser'), 1000);
+                }
+
+                state.centerPile = [];
+                updateUI();
+
+                setTimeout(() => {
+                    displayCardBack();
+                    setTimeout(flipCard, 1000);
+                }, 1500);
+            }
+        }
+
+        // 判斷拍牌結果
+        function judgeSlap() {
+            const p1Time = state.slapRecorded.player1;
+            const p2Time = state.slapRecorded.player2;
+            const pileCount = state.centerPile.length;
+
+            let loser;
+
+            if (p1Time === null && p2Time !== null) {
+                // 只有玩家2拍了
+                loser = 1;
+            } else if (p2Time === null && p1Time !== null) {
+                // 只有玩家1拍了
+                loser = 2;
+            } else if (p1Time !== null && p2Time !== null) {
+                // 兩人都拍了，比較時間
+                loser = p1Time > p2Time ? 1 : 2;
+            } else {
+                // 都沒拍
+                setTimeout(flipCard, 1000);
+                return;
+            }
+
+            if (loser === 1) {
+                state.player1Cards += pileCount;
+                showMessage(`玩家1慢了！收 ${pileCount} 張牌`);
+                elements.player1Zone.classList.add('loser');
+                elements.player2Zone.classList.add('winner');
+                setTimeout(() => {
+                    elements.player1Zone.classList.remove('loser');
+                    elements.player2Zone.classList.remove('winner');
+                }, 1000);
+            } else {
+                state.player2Cards += pileCount;
+                showMessage(`玩家2慢了！收 ${pileCount} 張牌`);
+                elements.player2Zone.classList.add('loser');
+                elements.player1Zone.classList.add('winner');
+                setTimeout(() => {
+                    elements.player1Zone.classList.remove('loser');
+                    elements.player2Zone.classList.remove('winner');
+                }, 1000);
+            }
+
+            state.centerPile = [];
+            updateUI();
+
+            // 檢查遊戲結束
+            if (state.player1Cards >= 52 || state.player2Cards >= 52) {
+                setTimeout(endGame, 1500);
+            } else {
+                setTimeout(() => {
+                    displayCardBack();
+                    setTimeout(flipCard, 1000);
+                }, 1500);
+            }
+        }
+
+        // 結束遊戲
+        function endGame() {
+            state.isPlaying = false;
+            clearTimeout(state.flipTimeout);
+
+            let winner;
+            if (state.player1Cards <= 0) {
+                winner = '玩家 1';
+            } else if (state.player2Cards <= 0) {
+                winner = '玩家 2';
+            } else if (state.player1Cards < state.player2Cards) {
+                winner = '玩家 1';
+            } else {
+                winner = '玩家 2';
+            }
+
+            elements.resultText.textContent = `🎉 ${winner} 獲勝！`;
+            elements.resultScreen.classList.add('show');
+        }
+
+        // 觸控事件處理
+        function setupTouchEvents() {
+            // 防止預設行為
+            document.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
+            // 玩家1 觸控
+            elements.player1Zone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleSlap(1);
+            }, { passive: false });
+
+            // 玩家2 觸控
+            elements.player2Zone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleSlap(2);
+            }, { passive: false });
+
+            // 滑鼠事件 (用於測試)
+            elements.player1Zone.addEventListener('mousedown', () => handleSlap(1));
+            elements.player2Zone.addEventListener('mousedown', () => handleSlap(2));
+        }
+
+        // 按鈕事件
+        elements.startBtn.addEventListener('click', startGame);
+        elements.restartBtn.addEventListener('click', () => {
+            elements.resultScreen.classList.remove('show');
+            startGame();
+        });
+
+        // 初始化
+        setupTouchEvents();
+
+        // 防止縮放
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+    </script>
+</body>
+</html>
