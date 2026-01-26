@@ -277,7 +277,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.2.0</div>
+    <div class="version">v0.2.1</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -733,8 +733,8 @@
                 elements.player2Zone.classList.add('loser');
                 elements.player1Zone.classList.add('winner');
                 setTimeout(() => {
-                    elements.player1Zone.classList.remove('loser');
-                    elements.player2Zone.classList.remove('winner');
+                    elements.player2Zone.classList.remove('loser');
+                    elements.player1Zone.classList.remove('winner');
                 }, 1000);
             }
 
