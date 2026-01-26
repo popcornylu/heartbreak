@@ -401,7 +401,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.5.1</div>
+    <div class="version">v0.5.2</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -906,6 +906,7 @@
             }
 
             state.centerPile = [];
+            state.currentNumber = 0; // 重新從1開始數
             updateUI();
 
             // 檢查牌堆是否還有牌
