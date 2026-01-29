@@ -473,6 +473,105 @@
             white-space: nowrap;
         }
 
+        /* 倒數計時 */
+        .countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(241, 196, 15, 0.6);
+            z-index: 20;
+            pointer-events: none;
+            display: none;
+        }
+
+        .countdown.show {
+            display: block;
+            animation: countdownPop 0.5s ease-out;
+        }
+
+        @keyframes countdownPop {
+            0% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        /* 轉盤 */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .spinner-overlay.show {
+            display: flex;
+        }
+
+        .spinner-title {
+            font-size: 1.8rem;
+            color: #f1c40f;
+            margin-bottom: 1.5rem;
+            font-weight: bold;
+        }
+
+        .spinner-container {
+            position: relative;
+            width: 260px;
+            height: 260px;
+        }
+
+        .spinner-pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            z-index: 210;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .spinner-wheel {
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .spinner-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 0 0;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            pointer-events: none;
+        }
+
+        .spinner-result {
+            font-size: 1.5rem;
+            color: #e74c3c;
+            margin-top: 1.5rem;
+            font-weight: bold;
+            min-height: 2rem;
+        }
+
         /* ===== 響應式設計 ===== */
 
         /* 手機直向 (寬度 < 600px) */
@@ -603,7 +702,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.7.0</div>
+    <div class="version">v0.8.0</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -638,6 +737,7 @@
             <div class="card-area" id="cardArea"></div>
             <div class="deck-count">牌堆: <span id="deckCount">0</span></div>
             <div class="message" id="message"></div>
+            <div class="countdown" id="countdown"></div>
         </div>
 
         <!-- 玩家區域將動態生成 -->
@@ -651,6 +751,16 @@
             <button class="restart-btn" id="pauseRestartBtn">重新開始</button>
             <button class="exit-btn" id="exitBtn">離開遊戲</button>
         </div>
+    </div>
+
+    <!-- 轉盤 -->
+    <div class="spinner-overlay" id="spinnerOverlay">
+        <div class="spinner-title">誰要收牌？</div>
+        <div class="spinner-container">
+            <div class="spinner-pointer">▼</div>
+            <div class="spinner-wheel" id="spinnerWheel"></div>
+        </div>
+        <div class="spinner-result" id="spinnerResult"></div>
     </div>
 
     <!-- 結果畫面 -->
@@ -671,7 +781,9 @@
             isPlaying: false,
             isPaused: false,
             canSlap: false,
-            flipTimeout: null
+            flipTimeout: null,
+            countdownTimer: null,
+            countdownValue: 0
         };
 
         // DOM 元素
@@ -692,7 +804,11 @@
             pauseScreen: document.getElementById('pauseScreen'),
             continueBtn: document.getElementById('continueBtn'),
             pauseRestartBtn: document.getElementById('pauseRestartBtn'),
-            exitBtn: document.getElementById('exitBtn')
+            exitBtn: document.getElementById('exitBtn'),
+            countdown: document.getElementById('countdown'),
+            spinnerOverlay: document.getElementById('spinnerOverlay'),
+            spinnerWheel: document.getElementById('spinnerWheel'),
+            spinnerResult: document.getElementById('spinnerResult')
         };
 
         // 動態生成的玩家元素
@@ -1113,6 +1229,8 @@
             state.isPlaying = true;
             state.isPaused = false;
             state.canSlap = false;
+            clearCountdown();
+            elements.spinnerOverlay.classList.remove('show');
 
             // 清空棄牌堆視覺
             playerElements.forEach(el => {
@@ -1158,7 +1276,11 @@
             const shouldSlap = card.isJoker || card.num === state.currentNumber;
 
             if (shouldSlap) {
-                // 該拍的牌：不設 timeout，等到 N-1 人按了才結束
+                if (state.playerCount >= 3) {
+                    // 3+人模式：開始 3 秒倒數
+                    startCountdown(3);
+                }
+                // 2人模式：不設 timeout，等到 N-1 人按了才結束
             } else {
                 state.flipTimeout = setTimeout(() => {
                     if (state.isPlaying && !state.isPaused) {
@@ -1193,10 +1315,11 @@
                 // 該拍的牌：等到 N-1 人拍了，最後一個沒拍的人就是輸家
                 if (slappedCount >= totalPlayers - 1) {
                     clearTimeout(state.flipTimeout);
+                    clearCountdown();
                     state.canSlap = false;
                     judgeSlap();
                 }
-                // 還沒到 N-1 人，繼續等待（保持原本的 timeout）
+                // 還沒到 N-1 人，繼續等待
             } else {
                 // 不該拍的牌：有人拍錯了，短暫延遲後判斷
                 clearTimeout(state.flipTimeout);
@@ -1207,6 +1330,195 @@
                     }
                 }, 500);
             }
+        }
+
+        // 倒數計時（3+ 人 shouldSlap 時使用）
+        function startCountdown(seconds) {
+            state.countdownValue = seconds;
+            const countdownEl = elements.countdown;
+            countdownEl.textContent = seconds;
+            countdownEl.className = 'countdown show';
+
+            state.countdownTimer = setInterval(() => {
+                if (state.isPaused) return;
+                state.countdownValue--;
+                if (state.countdownValue > 0) {
+                    countdownEl.textContent = state.countdownValue;
+                    // 重新觸發動畫
+                    countdownEl.className = 'countdown';
+                    void countdownEl.offsetWidth; // force reflow
+                    countdownEl.className = 'countdown show';
+                } else {
+                    // 倒數結束
+                    clearInterval(state.countdownTimer);
+                    state.countdownTimer = null;
+                    countdownEl.className = 'countdown';
+                    state.canSlap = false;
+                    onCountdownEnd();
+                }
+            }, 1000);
+        }
+
+        function clearCountdown() {
+            if (state.countdownTimer) {
+                clearInterval(state.countdownTimer);
+                state.countdownTimer = null;
+            }
+            elements.countdown.className = 'countdown';
+            state.countdownValue = 0;
+        }
+
+        function onCountdownEnd() {
+            const notSlapped = state.players
+                .map((p, i) => ({ index: i, slapped: p.slapRecord !== null }))
+                .filter(p => !p.slapped);
+            const slappedCount = state.players.length - notSlapped.length;
+
+            if (slappedCount === 0) {
+                // 沒有人拍 → 繼續出牌
+                state.flipTimeout = setTimeout(() => {
+                    if (state.isPaused) return;
+                    clearAllFeedback();
+                    displayCardBack();
+                    state.flipTimeout = setTimeout(() => {
+                        if (state.isPlaying && !state.isPaused) flipCard();
+                    }, 1000);
+                }, 500);
+            } else if (notSlapped.length <= 1) {
+                // 0 或 1 人沒拍 → 直接判定
+                judgeSlap();
+            } else {
+                // 超過 1 人沒拍（但有人拍了）→ 轉盤
+                showSpinner(notSlapped.map(p => p.index));
+            }
+        }
+
+        // 轉盤功能
+        function showSpinner(candidates) {
+            const overlay = elements.spinnerOverlay;
+            const wheel = elements.spinnerWheel;
+            const result = elements.spinnerResult;
+
+            // 色塊顏色
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+            const n = candidates.length;
+            const sliceAngle = 360 / n;
+
+            // 用 conic-gradient 畫色塊
+            let gradient = '';
+            for (let i = 0; i < n; i++) {
+                const startAngle = i * sliceAngle;
+                const endAngle = (i + 1) * sliceAngle;
+                const color = colors[i % colors.length];
+                gradient += `${color} ${startAngle}deg ${endAngle}deg`;
+                if (i < n - 1) gradient += ', ';
+            }
+            wheel.style.background = `conic-gradient(${gradient})`;
+
+            // 清除舊標籤
+            wheel.innerHTML = '';
+
+            // 添加玩家標籤
+            for (let i = 0; i < n; i++) {
+                const label = document.createElement('div');
+                label.className = 'spinner-label';
+                label.textContent = `P${candidates[i] + 1}`;
+                // 置於色塊中間
+                const midAngle = (i * sliceAngle + sliceAngle / 2) - 90; // -90 因為 conic 從上方開始
+                const rad = midAngle * Math.PI / 180;
+                const labelRadius = 90;
+                const lx = labelRadius * Math.cos(rad);
+                const ly = labelRadius * Math.sin(rad);
+                label.style.transform = `translate(${lx - 15}px, ${ly - 10}px)`;
+                wheel.appendChild(label);
+            }
+
+            // 重置旋轉
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            void wheel.offsetWidth; // force reflow
+
+            result.textContent = '';
+            overlay.classList.add('show');
+
+            // 隨機決定最終停止位置（選中的候選人索引）
+            const winnerIdx = Math.floor(Math.random() * n);
+            // 計算停止角度：指針在頂部（0度），需要讓 winnerIdx 的色塊中心對準頂部
+            // conic-gradient 從頂部順時針畫，所以色塊 i 的中心在 (i+0.5)*sliceAngle 度
+            // 旋轉後，指針指向的角度 = totalRotation % 360
+            // 我們需要 totalRotation % 360 = winnerIdx 色塊中心
+            const targetSliceCenter = 360 - (winnerIdx + 0.5) * sliceAngle;
+            const extraSpins = 5 + Math.floor(Math.random() * 3); // 5-7 圈
+            const totalRotation = extraSpins * 360 + targetSliceCenter;
+
+            // 開始旋轉
+            setTimeout(() => {
+                wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+                wheel.style.transform = `rotate(${totalRotation}deg)`;
+            }, 100);
+
+            // 旋轉結束後
+            setTimeout(() => {
+                const loserIndex = candidates[winnerIdx];
+                const pileCount = state.centerPile.length;
+
+                result.textContent = `玩家${loserIndex + 1} 收 ${pileCount} 張牌`;
+
+                // 設定背景：有拍的人第一個綠色、其他黃色，輸家紅色
+                const slaps = state.players
+                    .map((p, i) => ({ index: i, record: p.slapRecord }))
+                    .filter(p => p.record !== null)
+                    .sort((a, b) => a.record.time - b.record.time);
+
+                slaps.forEach((slap, rank) => {
+                    if (rank === 0) {
+                        setPlayerBackground(slap.index, 'green');
+                    } else {
+                        setPlayerBackground(slap.index, 'yellow');
+                    }
+                    showFeedback(slap.index, true);
+                });
+
+                // 沒拍的人標紅/黃
+                candidates.forEach(ci => {
+                    if (ci === loserIndex) {
+                        setPlayerBackground(ci, 'red');
+                    } else {
+                        setPlayerBackground(ci, 'yellow');
+                    }
+                    showFeedback(ci, false);
+                });
+
+                // 輸家收牌
+                state.players[loserIndex].discard.push(...state.centerPile);
+                updateDiscardVisual(playerElements[loserIndex].discard, state.players[loserIndex].discard);
+
+                state.centerPile = [];
+                state.currentNumber = 0;
+                updateUI();
+
+                playErrorSound();
+
+                // 2秒後關閉轉盤，繼續遊戲
+                setTimeout(() => {
+                    overlay.classList.remove('show');
+
+                    if (state.deck.length === 0) {
+                        state.flipTimeout = setTimeout(() => {
+                            if (!state.isPaused) endGame();
+                        }, 1500);
+                    } else {
+                        state.flipTimeout = setTimeout(() => {
+                            if (state.isPaused) return;
+                            clearAllFeedback();
+                            displayCardBack();
+                            state.flipTimeout = setTimeout(() => {
+                                if (state.isPlaying && !state.isPaused) flipCard();
+                            }, 1000);
+                        }, 1500);
+                    }
+                }, 2000);
+            }, 4200); // 略多於 4s transition 時間
         }
 
         // 判斷拍牌結果
@@ -1340,6 +1652,7 @@
         function endGame() {
             state.isPlaying = false;
             clearTimeout(state.flipTimeout);
+            clearCountdown();
 
             // 根據棄牌數量排名
             const rankings = state.players
@@ -1403,6 +1716,12 @@
             if (!state.isPlaying || state.isPaused) return;
             state.isPaused = true;
             clearTimeout(state.flipTimeout);
+            // 暫停時保留 countdownValue 但清除 timer
+            if (state.countdownTimer) {
+                clearInterval(state.countdownTimer);
+                state.countdownTimer = null;
+            }
+            elements.countdown.className = 'countdown';
             elements.pauseScreen.classList.add('show');
         }
 
@@ -1411,7 +1730,10 @@
             if (!state.isPaused) return;
             state.isPaused = false;
             elements.pauseScreen.classList.remove('show');
-            if (!state.canSlap) {
+            if (state.canSlap && state.countdownValue > 0) {
+                // 恢復倒數
+                startCountdown(state.countdownValue);
+            } else if (!state.canSlap) {
                 setTimeout(flipCard, 500);
             }
         }
@@ -1421,6 +1743,8 @@
             state.isPlaying = false;
             state.isPaused = false;
             clearTimeout(state.flipTimeout);
+            clearCountdown();
+            elements.spinnerOverlay.classList.remove('show');
             elements.pauseScreen.classList.remove('show');
             elements.startScreen.classList.remove('hidden');
         }
