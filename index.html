@@ -702,7 +702,7 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.8.0</div>
+    <div class="version">v0.8.1</div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -1284,11 +1284,8 @@
             const shouldSlap = checkShouldSlap(card, state.currentNumber);
 
             if (shouldSlap) {
-                if (state.playerCount >= 3) {
-                    // 3+人模式：開始 3 秒倒數
-                    startCountdown(3);
-                }
-                // 2人模式：不設 timeout，等到 N-1 人按了才結束
+                // 所有模式：開始 3 秒倒數
+                startCountdown(3);
             } else {
                 state.flipTimeout = setTimeout(() => {
                     if (state.isPlaying && !state.isPaused) {
