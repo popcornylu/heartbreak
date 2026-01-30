@@ -874,6 +874,14 @@
             });
         }
 
+        // 判斷是否該拍：Joker 或數字差 ±1（含 1↔13 循環）
+        function checkShouldSlap(card, currentNumber) {
+            if (!card) return false;
+            if (card.isJoker) return true;
+            const diff = Math.abs(card.num - currentNumber);
+            return diff <= 1 || diff === 12; // diff===12 即 1 vs 13
+        }
+
         // 撲克牌花色
         const suits = ['♠', '♥', '♦', '♣'];
         const suitColors = { '♠': 'black', '♥': 'red', '♦': 'red', '♣': 'black' };
@@ -1273,7 +1281,7 @@
 
             state.canSlap = true;
 
-            const shouldSlap = card.isJoker || card.num === state.currentNumber;
+            const shouldSlap = checkShouldSlap(card, state.currentNumber);
 
             if (shouldSlap) {
                 if (state.playerCount >= 3) {
@@ -1296,7 +1304,7 @@
             if (playerIndex < 0 || playerIndex >= state.players.length) return;
 
             const now = performance.now();
-            const shouldSlap = state.currentCard && (state.currentCard.isJoker || state.currentCard.num === state.currentNumber);
+            const shouldSlap = checkShouldSlap(state.currentCard, state.currentNumber);
 
             // 檢查是否已經按過
             if (state.players[playerIndex].slapRecord !== null) return;
@@ -1524,7 +1532,7 @@
         // 判斷拍牌結果
         function judgeSlap() {
             const pileCount = state.centerPile.length;
-            const shouldSlap = state.currentCard && (state.currentCard.isJoker || state.currentCard.num === state.currentNumber);
+            const shouldSlap = checkShouldSlap(state.currentCard, state.currentNumber);
 
             // 收集所有拍牌的人
             const slaps = state.players
