@@ -1317,6 +1317,13 @@
             const totalPlayers = state.players.length;
 
             if (shouldSlap) {
+                // 立即設定背景顏色
+                if (slappedCount === 1) {
+                    setPlayerBackground(playerIndex, 'green');
+                } else {
+                    setPlayerBackground(playerIndex, 'yellow');
+                }
+
                 // 該拍的牌：等到 N-1 人拍了，最後一個沒拍的人就是輸家
                 if (slappedCount >= totalPlayers - 1) {
                     clearTimeout(state.flipTimeout);
