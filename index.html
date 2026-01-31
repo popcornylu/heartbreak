@@ -445,6 +445,31 @@
             text-align: center;
         }
 
+        .result-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .result-buttons button {
+            padding: 1rem 2.5rem;
+            font-size: 1.3rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            min-width: 180px;
+            color: white;
+        }
+
+        .result-buttons .restart-btn {
+            background: #f39c12;
+        }
+
+        .result-buttons .exit-btn {
+            background: #e74c3c;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -766,7 +791,10 @@
     <!-- 結果畫面 -->
     <div class="result-screen" id="resultScreen">
         <h2 id="resultText"></h2>
-        <button class="start-btn" id="restartBtn">再玩一次</button>
+        <div class="result-buttons">
+            <button class="restart-btn" id="restartBtn">再玩一次</button>
+            <button class="exit-btn" id="resultExitBtn">離開遊戲</button>
+        </div>
     </div>
 
     <script>
@@ -800,6 +828,7 @@
             resultScreen: document.getElementById('resultScreen'),
             resultText: document.getElementById('resultText'),
             restartBtn: document.getElementById('restartBtn'),
+            resultExitBtn: document.getElementById('resultExitBtn'),
             pauseBtn: document.getElementById('pauseBtn'),
             pauseScreen: document.getElementById('pauseScreen'),
             continueBtn: document.getElementById('continueBtn'),
@@ -1756,6 +1785,7 @@
             clearCountdown();
             elements.spinnerOverlay.classList.remove('show');
             elements.pauseScreen.classList.remove('show');
+            elements.resultScreen.classList.remove('show');
             elements.startScreen.classList.remove('hidden');
         }
 
@@ -1797,6 +1827,17 @@
             elements.resultScreen.classList.remove('show');
             clearAllFeedback();
             startGame();
+        });
+        elements.resultExitBtn.addEventListener('click', () => {
+            elements.resultScreen.classList.remove('show');
+            clearAllFeedback();
+            exitGame();
+        });
+        elements.resultExitBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            elements.resultScreen.classList.remove('show');
+            clearAllFeedback();
+            exitGame();
         });
 
         elements.pauseBtn.addEventListener('click', pauseGame);
