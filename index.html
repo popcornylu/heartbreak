@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>心臟病 - 多人對戰</title>
     <style>
         * {
@@ -347,8 +350,7 @@
         .pause-btn {
             position: absolute;
             top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 10px;
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -507,7 +509,8 @@
             font-size: 6rem;
             font-weight: bold;
             color: #fff;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(241, 196, 15, 0.6);
+            -webkit-text-stroke: 3px #000;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             z-index: 20;
             pointer-events: none;
             display: none;
@@ -839,6 +842,13 @@
             spinnerWheel: document.getElementById('spinnerWheel'),
             spinnerResult: document.getElementById('spinnerResult')
         };
+
+        // 音效（加 cache buster）
+        const cacheBuster = '?v=' + Date.now();
+        const tickAudio = new Audio('tick.mp3' + cacheBuster);
+        const resultAudio = new Audio('result.mp3' + cacheBuster);
+        const correctAudio = new Audio('correct.mp3' + cacheBuster);
+        const incorrectAudio = new Audio('incorrect.mp3' + cacheBuster);
 
         // 動態生成的玩家元素
         let playerElements = [];
@@ -1341,8 +1351,15 @@
             // 立即顯示反饋
             showFeedback(playerIndex, shouldSlap);
 
-            // 計算已拍人數
+            // 計算已拍人數（包含自己）
             const slappedCount = state.players.filter(p => p.slapRecord !== null).length;
+
+            // 第一個拍的人播放音效
+            if (slappedCount === 1) {
+                const audio = shouldSlap ? correctAudio : incorrectAudio;
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            }
             const totalPlayers = state.players.length;
 
             if (shouldSlap) {
@@ -1496,11 +1513,38 @@
             setTimeout(() => {
                 wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
                 wheel.style.transform = `rotate(${totalRotation}deg)`;
+
+                // 用 requestAnimationFrame 追蹤實際旋轉，每過一個色塊邊界播放 tick
+                let lastSegment = -1;
+                const spinStart = performance.now();
+                function checkSpinTick() {
+                    const elapsed = performance.now() - spinStart;
+                    if (elapsed > 4100) return;
+                    const style = getComputedStyle(wheel);
+                    const transform = style.transform;
+                    if (transform && transform !== 'none') {
+                        const values = transform.split('(')[1].split(')')[0].split(',');
+                        const a = parseFloat(values[0]);
+                        const b = parseFloat(values[1]);
+                        const angle = ((Math.atan2(b, a) * 180 / Math.PI) % 360 + 360) % 360;
+                        const currentSegment = Math.floor(angle / sliceAngle);
+                        if (currentSegment !== lastSegment) {
+                            lastSegment = currentSegment;
+                            tickAudio.currentTime = 0;
+                            tickAudio.play().catch(() => {});
+                        }
+                    }
+                    requestAnimationFrame(checkSpinTick);
+                }
+                requestAnimationFrame(checkSpinTick);
             }, 100);
 
             // 旋轉結束後
             setTimeout(() => {
                 const loserIndex = candidates[winnerIdx];
+                // 播放結果音效
+                resultAudio.currentTime = 0;
+                resultAudio.play().catch(() => {});
                 const pileCount = state.centerPile.length;
 
                 result.textContent = `玩家${loserIndex + 1} 收 ${pileCount} 張牌`;
@@ -1535,8 +1579,6 @@
                 state.centerPile = [];
                 state.currentNumber = 0;
                 updateUI();
-
-                playErrorSound();
 
                 // 2秒後關閉轉盤，繼續遊戲
                 setTimeout(() => {
@@ -1610,8 +1652,6 @@
                         setPlayerBackground(p.index, 'red');
                     });
 
-                    playSuccessSound();
-                    setTimeout(playErrorSound, 300);
                 } else if (correctSlaps.length > 0) {
                     // 所有人都拍了，有人按對
                     // 最慢按對的人輸（收牌）
@@ -1632,13 +1672,9 @@
                         }
                     });
 
-                    if (correctSlaps.length > 1) {
-                        playSuccessSound();
-                        setTimeout(playErrorSound, 300);
-                    } else {
+                    if (correctSlaps.length === 1) {
                         // 只有一個人按對，那個人就是輸家（紅色）
                         setPlayerBackground(correctSlaps[0].index, 'red');
-                        playErrorSound();
                     }
                 }
             } else {
@@ -1656,8 +1692,6 @@
                         setPlayerBackground(slap.index, 'yellow');
                     }
                 });
-
-                playErrorSound();
             }
 
             // 輸家收牌
