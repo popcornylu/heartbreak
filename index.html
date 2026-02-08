@@ -484,6 +484,65 @@
             font-size: 0.8rem;
             color: rgba(255, 255, 255, 0.4);
             z-index: 1000;
+            cursor: pointer;
+        }
+
+        /* Release Notes */
+        .release-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            overflow-y: auto;
+            padding: 40px 20px;
+        }
+
+        .release-overlay.show {
+            display: flex;
+        }
+
+        .release-overlay h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .release-list {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .release-item {
+            margin-bottom: 1.2rem;
+        }
+
+        .release-item .release-version {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #f1c40f;
+        }
+
+        .release-item .release-desc {
+            font-size: 0.9rem;
+            color: #bdc3c7;
+            margin-top: 0.2rem;
+        }
+
+        .release-close-btn {
+            margin-top: 1.5rem;
+            padding: 0.8rem 2rem;
+            font-size: 1.1rem;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
         }
 
         /* 訊息提示 */
@@ -730,7 +789,14 @@
     </style>
 </head>
 <body>
-    <div class="version">v0.9.0</div>
+    <div class="version" id="versionBtn">v0.9.1</div>
+
+    <!-- Release Notes -->
+    <div class="release-overlay" id="releaseOverlay">
+        <h2>Release Notes</h2>
+        <div class="release-list" id="releaseList"></div>
+        <button class="release-close-btn" id="releaseCloseBtn">關閉</button>
+    </div>
 
     <!-- 開始畫面 -->
     <div class="start-screen" id="startScreen">
@@ -1545,6 +1611,28 @@
                 // 播放結果音效
                 resultAudio.currentTime = 0;
                 resultAudio.play().catch(() => {});
+
+                // 只亮轉到的區塊，其他變暗（用黑色混合）
+                let dimGradient = '';
+                for (let i = 0; i < n; i++) {
+                    const startAngle = i * sliceAngle;
+                    const endAngle = (i + 1) * sliceAngle;
+                    const baseColor = colors[i % colors.length];
+                    if (i === winnerIdx) {
+                        dimGradient += `${baseColor} ${startAngle}deg ${endAngle}deg`;
+                    } else {
+                        dimGradient += `color-mix(in srgb, ${baseColor} 30%, black) ${startAngle}deg ${endAngle}deg`;
+                    }
+                    if (i < n - 1) dimGradient += ', ';
+                }
+                wheel.style.background = `conic-gradient(${dimGradient})`;
+
+                // 暗化非中選的標籤
+                const labels = wheel.querySelectorAll('.spinner-label');
+                labels.forEach((label, i) => {
+                    label.style.opacity = i === winnerIdx ? '1' : '0.3';
+                });
+
                 const pileCount = state.centerPile.length;
 
                 result.textContent = `玩家${loserIndex + 1} 收 ${pileCount} 張牌`;
@@ -1904,6 +1992,54 @@
         elements.exitBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             exitGame();
+        });
+
+        // Release Notes
+        const releaseHistory = [
+            { version: 'v0.9.1', desc: '轉盤結果高亮中選區塊、Release Notes 功能' },
+            { version: 'v0.9.0', desc: '音效系統改用 mp3 檔案、暫停按鈕移至右上角、倒數白底黑邊、no-cache' },
+            { version: 'v0.8.4', desc: '遊戲結束畫面增加再玩一次與離開遊戲按鈕' },
+            { version: 'v0.8.3', desc: '轉盤結果不再顯示圈叉圖示' },
+            { version: 'v0.8.2', desc: '拍牌即時背景反饋（綠/黃）' },
+            { version: 'v0.8.1', desc: '拍牌條件 ±1 + 全模式 3 秒倒數' },
+            { version: 'v0.8.0', desc: '3-6人倒數計時 + 轉盤選輸家' },
+            { version: 'v0.7.0', desc: '多人遊戲支援 2-6 人' },
+            { version: 'v0.6.0', desc: '響應式設計支援 iPhone 和 iPad' },
+            { version: 'v0.5.2', desc: '收牌後喊數重新從 1 開始' },
+            { version: 'v0.5.1', desc: '暫停後繼續不會重複發牌' },
+            { version: 'v0.5.0', desc: '暫停遊戲功能' },
+            { version: 'v0.4.2', desc: '圈圈叉叉只顯示在自己的區域' },
+            { version: 'v0.4.1', desc: '棄牌堆只在收牌時更新' },
+            { version: 'v0.4.0', desc: '棄牌堆系統' },
+            { version: 'v0.3.1', desc: '只有按鈕可以觸發拍牌' },
+            { version: 'v0.3.0', desc: '新 UI 按鈕與反饋系統' },
+            { version: 'v0.2.1', desc: '修復玩家2輸時紅色不會消失的 bug' },
+            { version: 'v0.2.0', desc: '中央牌堆疊加效果' },
+            { version: 'v0.1.0', desc: '版本號顯示、音效系統' },
+        ];
+
+        const releaseOverlay = document.getElementById('releaseOverlay');
+        const releaseList = document.getElementById('releaseList');
+        const releaseCloseBtn = document.getElementById('releaseCloseBtn');
+        const versionBtn = document.getElementById('versionBtn');
+
+        // 渲染 release list
+        releaseHistory.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'release-item';
+            item.innerHTML = `<div class="release-version">${r.version}</div><div class="release-desc">${r.desc}</div>`;
+            releaseList.appendChild(item);
+        });
+
+        versionBtn.addEventListener('click', () => releaseOverlay.classList.add('show'));
+        versionBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            releaseOverlay.classList.add('show');
+        });
+        releaseCloseBtn.addEventListener('click', () => releaseOverlay.classList.remove('show'));
+        releaseCloseBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            releaseOverlay.classList.remove('show');
         });
 
         // 初始化
