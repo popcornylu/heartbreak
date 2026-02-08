@@ -909,12 +909,34 @@
             spinnerResult: document.getElementById('spinnerResult')
         };
 
-        // 音效（加 cache buster）
+        // 音效系統 - 使用 Web Audio API 預載 AudioBuffer，避免 HTML5 Audio 播放問題
         const cacheBuster = '?v=' + Date.now();
-        const tickAudio = new Audio('tick.mp3' + cacheBuster);
-        const resultAudio = new Audio('result.mp3' + cacheBuster);
-        const correctAudio = new Audio('correct.mp3' + cacheBuster);
-        const incorrectAudio = new Audio('incorrect.mp3' + cacheBuster);
+        const audioBuffers = {};
+        const soundFiles = ['tick', 'result', 'correct', 'incorrect'];
+
+        async function loadAudioBuffers() {
+            const ctx = getAudioContext();
+            for (const name of soundFiles) {
+                try {
+                    const resp = await fetch(`${name}.mp3${cacheBuster}`);
+                    const arrayBuffer = await resp.arrayBuffer();
+                    audioBuffers[name] = await ctx.decodeAudioData(arrayBuffer);
+                } catch (e) {
+                    console.warn(`Failed to load ${name}.mp3`, e);
+                }
+            }
+        }
+
+        function playSound(name) {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+            const buffer = audioBuffers[name];
+            if (!buffer) return;
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+        }
 
         // 動態生成的玩家元素
         let playerElements = [];
@@ -1329,6 +1351,11 @@
 
         // 開始遊戲
         function startGame() {
+            // 確保音效已載入 + AudioContext 已啟動
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+            if (!audioBuffers.tick) loadAudioBuffers();
+
             elements.startScreen.classList.add('hidden');
 
             // 初始化玩家
@@ -1422,9 +1449,7 @@
 
             // 第一個拍的人播放音效
             if (slappedCount === 1) {
-                const audio = shouldSlap ? correctAudio : incorrectAudio;
-                audio.currentTime = 0;
-                audio.play().catch(() => {});
+                playSound(shouldSlap ? 'correct' : 'incorrect');
             }
             const totalPlayers = state.players.length;
 
@@ -1596,8 +1621,7 @@
                         const currentSegment = Math.floor(angle / sliceAngle);
                         if (currentSegment !== lastSegment) {
                             lastSegment = currentSegment;
-                            tickAudio.currentTime = 0;
-                            tickAudio.play().catch(() => {});
+                            playSound('tick');
                         }
                     }
                     requestAnimationFrame(checkSpinTick);
@@ -1609,8 +1633,7 @@
             setTimeout(() => {
                 const loserIndex = candidates[winnerIdx];
                 // 播放結果音效
-                resultAudio.currentTime = 0;
-                resultAudio.play().catch(() => {});
+                playSound('result');
 
                 // 只亮轉到的區塊，其他變暗（用黑色混合）
                 let dimGradient = '';
