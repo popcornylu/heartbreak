@@ -1,11 +1,11 @@
-# 心臟病 (Heartbreak) - 雙人卡牌遊戲
+# 心臟病 (Heartbreak) - 多人卡牌遊戲
 
 ## 專案概述
-這是一個支援 iPhone 和 iPad 的雙人對戰心臟病卡牌遊戲。玩家各站一側，透過觸控紅色按鈕進行遊戲。
+這是一個支援 iPhone 和 iPad 的 2-6 人對戰心臟病卡牌遊戲。玩家各站一側，透過觸控紅色按鈕進行遊戲。
 
 - **Repository**: `popcornylu/heartbreak`
 - **URL**: https://popcornylu.github.io/heartbreak/
-- **技術**: 純 HTML/CSS/JavaScript，單一檔案，無外部依賴
+- **技術**: 純 HTML/CSS/JavaScript，單一檔案 + mp3 音效檔
 
 ## 遊戲規則
 
@@ -39,10 +39,31 @@ state = {
 ```
 
 ### 音效系統
-使用 Web Audio API 生成音效，無需外部音檔：
-- `playCardSound()` - 發牌音效（咻聲）
-- `playErrorSound()` - 錯誤音效（打打的 buzzer）
-- `playSuccessSound()` - 成功音效（叮咚叮咚）
+使用 Web Audio API 的 `AudioBuffer` 預載 mp3 檔案，確保快速、可靠的音效播放：
+
+#### 音效檔案
+| 檔案 | 用途 | 觸發時機 |
+|------|------|---------|
+| `correct.mp3` | 拍對音效 | 該拍時第一個拍的人 |
+| `incorrect.mp3` | 拍錯音效 | 不該拍時第一個拍的人 |
+| `tick.mp3` | 轉盤滴答聲 | 轉盤旋轉時每過一個色塊邊界 |
+| `result.mp3` | 轉盤結果音效 | 轉盤停止揭曉結果時 |
+
+#### 技術細節
+- 開始遊戲時透過 `loadAudioBuffers()` 將所有 mp3 預載為 `AudioBuffer`
+- 播放時建立新的 `BufferSource`，支援同時播放多個音效（不會互相蓋掉）
+- 每次播放前檢查 `AudioContext` 狀態，自動 `resume()` 避免 iOS 暫停問題
+- mp3 URL 加上 `?v=timestamp` cache buster 確保載入最新版本
+- `playCardSound()` - 發牌音效（Web Audio API 合成，咻聲）
+
+#### 拍牌音效規則
+- 每次可以拍牌時，**只有第一個拍的人**會觸發音效
+- 拍對播放 `correct.mp3`，拍錯播放 `incorrect.mp3`
+
+#### 轉盤音效
+- 使用 `requestAnimationFrame` 追蹤轉盤實際旋轉角度
+- 每跨過一個色塊邊界播放一次 `tick.mp3`，與視覺同步
+- 轉盤停止時播放 `result.mp3`，同時高亮中選區塊、暗化其他區塊
 
 ## UI 設計原則
 
@@ -89,7 +110,7 @@ state = {
 - 遊戲容器方向 (row/column)
 - 中央區域方向和尺寸
 - 按鈕、牌堆、文字大小
-- 暫停按鈕位置（手機在左下角）
+- 暫停按鈕位置（中央區域右上角）
 
 ## 部署
 
@@ -105,7 +126,7 @@ state = {
 git add .
 git commit -m "描述
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 git push
 ```
 
